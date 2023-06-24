@@ -365,7 +365,7 @@ router.post("/addPassengerRide", async (req, res) => {
 router.get("/ridePassenger/:rideId", async (req, res) => {
   try {
     const { rideId } = req.params;
-
+    const ride = await Ride.findById(rideId);
     // Find all passengerRide records for the given rideId
     const passengerRides = await PassengerRide.find({ ride: rideId });
 
@@ -383,6 +383,9 @@ router.get("/ridePassenger/:rideId", async (req, res) => {
       const passenger = passengers.find(
         (p) => p.user.toString() === user._id.toString()
       );
+      const passengerRide = passengerRides.find(
+        (pr) => pr.user.toString() === user._id.toString()
+      );
       return {
         user: {
           _id: user._id,
@@ -395,6 +398,10 @@ router.get("/ridePassenger/:rideId", async (req, res) => {
           image: user.image,
         },
         passengerRate: passenger ? passenger.passengerRate : null,
+        status: passengerRide ? passengerRide.status : "Pending",
+        ride: {
+          _id: ride._id,
+        },
       };
     });
 
@@ -711,5 +718,36 @@ router.get("/carHasDriver/:userId", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+//update status inside passengerRide by rideId
+router.patch("/updatePassengerRides/:rideId/:userId", async (req, res) => {
+  try {
+    const { rideId, userId } = req.params;
+    const { status } = req.body;
+
+    // Validate status value
+    const validStatusValues = ["Pending", "Approved", "Rejected"];
+    if (!validStatusValues.includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
+    // Add authentication and authorization checks here if required
+
+    // Update the passengerRide document by ride ID
+    const updatedPassengerRide = await PassengerRide.findOneAndUpdate(
+      { ride: rideId, user: userId  },
+      { status },
+      { new: true }
+    );
+
+    if (!updatedPassengerRide) {
+      return res.status(404).json({ error: "Passenger ride not found" });
+    }
+
+    res.json(updatedPassengerRide);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update passenger ride status" });
   }
 });
